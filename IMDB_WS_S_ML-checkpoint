@@ -1,0 +1,558 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import requests\n",
+    "from bs4 import BeautifulSoup\n",
+    "import pandas as pd"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Step 1: Web Scraping\n",
+    "url = \"https://www.imdb.com/search/title/?genres=action&sort=user_rating,desc&title_type=feature&num_votes=25000,&pf_rd_m=A2FGELUUNOQJNL&pf_rd_p=f11158cc-b50b-4c4d-b0a2-40b32863395b&pf_rd_r=XZ8X52H1R40B7KG5SNZ9&pf_rd_s=right-6&pf_rd_t=15506&pf_rd_i=top&ref_=chttp_gnr_1\"\n",
+    "response = requests.get(url)\n",
+    "soup = BeautifulSoup(response.content, 'html.parser')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Lists to store extracted data\n",
+    "data1 = []\n",
+    "data2 = []"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Extract movie details\n",
+    "movie_containers = soup.find_all('div', class_='lister-item-content')\n",
+    "for container in movie_containers:\n",
+    "    # Extract data for Table 1\n",
+    "    movie_name = container.h3.a.text\n",
+    "    directors = container.find('p', class_='').find_all('a')\n",
+    "    director_names = [director.text for director in directors]\n",
+    "    duration = int(container.find('span', class_='runtime').text.split()[0])\n",
+    "    year = int(container.find('span', class_='lister-item-year').text.strip('()'))\n",
+    "    ratings = float(container.find('strong').text)\n",
+    "    metascore = container.find('span', class_='metascore').text.strip() if container.find('span', class_='metascore') else None\n",
+    "    data1.append([movie_name, ', '.join(director_names), duration, year, ratings, metascore])\n",
+    "\n",
+    "    # Extract data for Table 2\n",
+    "    stars = container.find('p', class_='').find('span', class_='')\n",
+    "    votes = int(container.find('p', class_='sort-num_votes-visible').find_all('span')[1].text.replace(',', ''))\n",
+    "    genre = container.find('span', class_='genre').text.strip().split(', ')\n",
+    "    gross_collection = container.find_all('span', class_='text-muted')[1].find('span', class_='ghost').text if container.find_all('span', class_='text-muted')[1].find('span', class_='ghost') else None\n",
+    "    popularity = int(container.find('span', class_='popularity').text.strip().replace(',', ''))\n",
+    "    certification = container.find('span', class_='certificate').text if container.find('span', class_='certificate') else None\n",
+    "    data2.append([movie_name, stars, votes, genre, gross_collection, popularity, certification])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create DataFrames\n",
+    "df1 = pd.DataFrame(data1, columns=['Movie Name', 'Director Name', 'Duration', 'Year', 'Ratings', 'Metascore'])\n",
+    "df2 = pd.DataFrame(data2, columns=['Movie Name', 'Stars', 'Votes', 'Genre', 'Gross Collection', 'Popularity', 'Certification'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Save DataFrames to CSV files\n",
+    "df1.to_csv('movie_details.csv', index=False)\n",
+    "df2.to_csv('movie_data.csv', index=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pip install requests beautifulsoup4 pandas"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import sqlite3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Connect to the SQLite database\n",
+    "conn = sqlite3.connect('imdb_database.db')\n",
+    "cursor = conn.cursor()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create Table 1\n",
+    "cursor.execute('''\n",
+    "    CREATE TABLE IF NOT EXISTS Table1 (\n",
+    "        Sno INTEGER PRIMARY KEY,\n",
+    "        MovieName TEXT,\n",
+    "        DirectorName TEXT,\n",
+    "        Duration INTEGER,\n",
+    "        Year INTEGER,\n",
+    "        Ratings REAL,\n",
+    "        Metascore TEXT\n",
+    "    )\n",
+    "''')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create Table 2\n",
+    "cursor.execute('''\n",
+    "    CREATE TABLE IF NOT EXISTS Table2 (\n",
+    "        MovieName TEXT PRIMARY KEY,\n",
+    "        Stars TEXT,\n",
+    "        Votes INTEGER,\n",
+    "        Genre TEXT,\n",
+    "        GrossCollection TEXT,\n",
+    "        Popularity INTEGER,\n",
+    "        Certification TEXT\n",
+    "    )\n",
+    "''')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Insert data into Table 1\n",
+    "for index, row in df1.iterrows():\n",
+    "    cursor.execute('''\n",
+    "        INSERT INTO Table1 (MovieName, DirectorName, Duration, Year, Ratings, Metascore)\n",
+    "        VALUES (?, ?, ?, ?, ?, ?)\n",
+    "    ''', (row['Movie Name'], row['Director Name'], row['Duration'], row['Year'], row['Ratings'], row['Metascore']))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Insert data into Table 2\n",
+    "for index, row in df2.iterrows():\n",
+    "    cursor.execute('''\n",
+    "        INSERT INTO Table2 (MovieName, Stars, Votes, Genre, GrossCollection, Popularity, Certification)\n",
+    "        VALUES (?, ?, ?, ?, ?, ?, ?)\n",
+    "    ''', (row['Movie Name'], row['Stars'], row['Votes'], ', '.join(row['Genre']), row['Gross Collection'], row['Popularity'], row['Certification']))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Commit the changes\n",
+    "conn.commit()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Example Queries\n",
+    "# 1) Display all the details of movies created by directors Christopher and Matt Reeves.\n",
+    "query1 = '''\n",
+    "    SELECT * FROM Table1\n",
+    "    WHERE DirectorName LIKE '%Christopher%' OR DirectorName LIKE '%Matt Reeves%'\n",
+    "'''\n",
+    "cursor.execute(query1)\n",
+    "result1 = cursor.fetchall()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 2) Display all the details of movies with a duration of 140 minutes to 190 minutes.\n",
+    "query2 = '''\n",
+    "    SELECT * FROM Table1\n",
+    "    WHERE Duration BETWEEN 140 AND 190\n",
+    "'''\n",
+    "cursor.execute(query2)\n",
+    "result2 = cursor.fetchall()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 3) Display all details of movies with ratings above 7 in ascending order.\n",
+    "query3 = '''\n",
+    "    SELECT * FROM Table1\n",
+    "    WHERE Ratings > 7\n",
+    "    ORDER BY Ratings ASC\n",
+    "'''\n",
+    "cursor.execute(query3)\n",
+    "result3 = cursor.fetchall()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Continue with the other queries...\n",
+    "\n",
+    "# Close the connection\n",
+    "conn.close()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pip install pandasql"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "from pandasql import sqldf"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Step 3: Pandas SQL and DataFrame Manipulation\n",
+    "\n",
+    "# Load CSV data into DataFrames\n",
+    "df1 = pd.read_csv('movie_details.csv')\n",
+    "df2 = pd.read_csv('movie_data.csv')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Define Pandas SQL environment\n",
+    "pysqldf = lambda q: sqldf(q, globals())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Example Queries using Pandas SQL\n",
+    "# 1) Display all the details of movies created by directors Christopher and Matt Reeves.\n",
+    "query1_pandas = '''\n",
+    "    SELECT * FROM df1\n",
+    "    WHERE DirectorName LIKE '%Christopher%' OR DirectorName LIKE '%Matt Reeves%'\n",
+    "'''\n",
+    "result1_pandas = pysqldf(query1_pandas)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 2) Display all the details of movies with a duration of 140 minutes to 190 minutes.\n",
+    "query2_pandas = '''\n",
+    "    SELECT * FROM df1\n",
+    "    WHERE Duration BETWEEN 140 AND 190\n",
+    "'''\n",
+    "result2_pandas = pysqldf(query2_pandas)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 3) Display all details of movies with ratings above 7 in ascending order.\n",
+    "query3_pandas = '''\n",
+    "    SELECT * FROM df1\n",
+    "    WHERE Ratings > 7\n",
+    "    ORDER BY Ratings ASC\n",
+    "'''\n",
+    "result3_pandas = pysqldf(query3_pandas)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Continue with the other queries...\n",
+    "\n",
+    "# Join the DataFrames for EDA\n",
+    "merged_df = pd.merge(df1, df2, on='Movie Name', how='inner')\n",
+    "\n",
+    "# Continue with Exploratory Data Analysis (EDA)..."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Step 4: Exploratory Data Analysis (EDA)\n",
+    "\n",
+    "# Example EDA tasks\n",
+    "# 1) Summary Statistics\n",
+    "summary_stats = merged_df.describe()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 2) Correlation Matrix\n",
+    "correlation_matrix = merged_df.corr()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 3) Top 10 Movies with the Highest Ratings\n",
+    "top_rated_movies = merged_df.nlargest(10, 'Ratings')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# 4) Movie Genre Distribution\n",
+    "genre_distribution = merged_df['Genre'].str.split(', ', expand=True).stack().value_counts()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# 5) Popularity vs Gross Collection\n",
+    "popularity_gross = merged_df.plot.scatter(x='Popularity', y='Gross Collection')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Continue with more EDA tasks..."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.preprocessing import StandardScaler\n",
+    "from sklearn.linear_model import LinearRegression\n",
+    "from sklearn.metrics import mean_squared_error"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Step 5: Machine Learning for Vote and Gross Collection Prediction\n",
+    "\n",
+    "# Assume X_vote and y_vote are features and target for vote prediction\n",
+    "# Assume X_gross and y_gross are features and target for gross collection prediction\n",
+    "\n",
+    "# Split data into train and test sets\n",
+    "X_vote_train, X_vote_test, y_vote_train, y_vote_test = train_test_split(X_vote, y_vote, test_size=0.2, random_state=42)\n",
+    "X_gross_train, X_gross_test, y_gross_train, y_gross_test = train_test_split(X_gross, y_gross, test_size=0.2, random_state=42)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Scale features\n",
+    "scaler_vote = StandardScaler()\n",
+    "X_vote_train_scaled = scaler_vote.fit_transform(X_vote_train)\n",
+    "X_vote_test_scaled = scaler_vote.transform(X_vote_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "scaler_gross = StandardScaler()\n",
+    "X_gross_train_scaled = scaler_gross.fit_transform(X_gross_train)\n",
+    "X_gross_test_scaled = scaler_gross.transform(X_gross_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Initialize and train Linear Regression models\n",
+    "model_vote = LinearRegression()\n",
+    "model_vote.fit(X_vote_train_scaled, y_vote_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "model_gross = LinearRegression()\n",
+    "model_gross.fit(X_gross_train_scaled, y_gross_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Predictions on test data\n",
+    "y_vote_pred = model_vote.predict(X_vote_test_scaled)\n",
+    "y_gross_pred = model_gross.predict(X_gross_test_scaled)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Calculate MSE for both models\n",
+    "mse_vote = mean_squared_error(y_vote_test, y_vote_pred)\n",
+    "mse_gross = mean_squared_error(y_gross_test, y_gross_pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(\"MSE for Vote Prediction:\", mse_vote)\n",
+    "print(\"MSE for Gross Collection Prediction:\", mse_gross)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
